@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "glad.h": "c",
+        "stdlib.h": "c",
+        "glfw3.h": "c",
+        "loadshaders.h": "c",
+        "stdio.h": "c",
+        "cglm.h": "c",
+        "loadtexture.h": "c",
+        "concisegl.h": "c",
+        "chunk.h": "c",
+        "block.h": "c",
+        "matricies.h": "c",
+        "fastnoiselite.h": "c",
+        "crtdefs.h": "c",
+        "stddef.h": "c",
+        "corecrt.h": "c",
+        "_mingw.h": "c",
+        "malloc.h": "c",
+        "string.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
+}
