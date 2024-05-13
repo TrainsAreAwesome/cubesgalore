@@ -1,7 +1,16 @@
 #define FNL_IMPL
 #include "../header/terrainGen.h"
 #include <omp.h>
-#define MAX_TERRAIN_HEIGHT 1000
+
+#define SEA 0
+#define SEA_ISLAND 1
+#define LAND 2
+
+//terrain height multiplier
+#define MAX_TERRAIN_HEIGHT 1024
+
+//water height; any air under will be water (calculated before generating caves)
+#define WATER_HEIGHT 0
 
 void initTerrainGen(world* loadedWorld, int seed){
     loadedWorld->mainNoise = fnlCreateState(seed);
@@ -26,22 +35,43 @@ void initTerrainGen(world* loadedWorld, int seed){
     loadedWorld->pv.noise_type = FNL_NOISE_PERLIN;
     loadedWorld->pv.frequency = 0.001;
 
+    loadedWorld->ct = fnlCreateState(seed);
+    loadedWorld->ct.noise_type = FNL_NOISE_PERLIN;
+    loadedWorld->ct.frequency = 0.0001;
+
 }
 
 int generateChunk(fullChunk* chunk, world* loadedWorld){
+    int currentTerrainLand;
     // #pragma omp parallel for
     for(int x = 0; x < CHUNK_SIZE_X; ++x){
         // #pragma omp parallel for
         for(int z = 0; z < CHUNK_SIZE_Z; ++z){
             float heightf = fnlGetNoise2D(&loadedWorld->mainNoise, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
             float pv = fnlGetNoise2D(&loadedWorld->pv, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
+            float ct = fnlGetNoise2D(&loadedWorld->ct, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
             // float rain = fnlGetNoise2D(&loadedWorld->rain, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
             // float temp = fnlGetNoise2D(&loadedWorld->temp, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
 
+
+
+            if(ct > -0.05 && ct < 0.05 ){
+                currentTerrainLand = SEA_ISLAND;
+            } else if(ct > 0.05){
+                currentTerrainLand = LAND;
+            } else {
+                currentTerrainLand = SEA;
+            }
+
             float tpv = (pv + 1) / 2;
-            tpv *= 5;
+
+            if(currentTerrainLand == LAND){
+                tpv *= 5;
+            } else if(currentTerrainLand == SEA_ISLAND){
+                tpv *= 2;
+            }
+
             pv *= tpv;
-            
 
 
             heightf *= MAX_TERRAIN_HEIGHT;
@@ -54,20 +84,32 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                     if(heightf > 150){
                         chunk->data.blocks[x][y][z].id = STONE;
                     } else {
-                        chunk->data.blocks[x][y][z].id = GRASS;
+                        if(heightf < (WATER_HEIGHT + 5) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                            chunk->data.blocks[x][y][z].id = SAND;
+                        } else {
+                            chunk->data.blocks[x][y][z].id = GRASS;
+                        }
                     }
                 } else if((int)heightf > (y + (chunk->data.y * CHUNK_SIZE_Y))){
                     if(((int)heightf - 5) <= (y + (chunk->data.y * CHUNK_SIZE_Y))){
                         if (heightf > 150){
                             chunk->data.blocks[x][y][z].id = STONE;
                         } else {
-                            chunk->data.blocks[x][y][z].id = DIRT;
+                            if(heightf < (WATER_HEIGHT + 5) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                                chunk->data.blocks[x][y][z].id = SAND;
+                            } else {
+                                chunk->data.blocks[x][y][z].id = DIRT;
+                            }
                         }            
                     } else {
                         chunk->data.blocks[x][y][z].id = STONE;
                     }
                 } else {
-                    chunk->data.blocks[x][y][z].id = AIR;
+                    if((y + (chunk->data.y * CHUNK_SIZE_Y) < WATER_HEIGHT) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                        chunk->data.blocks[x][y][z].id = WATER;
+                    } else {
+                        chunk->data.blocks[x][y][z].id = AIR;
+                    }
                 }
                 
 

@@ -12,6 +12,10 @@ unsigned int getUFromBlockID(uint8_t id, uint8_t corner){
                     return 2;
                 case DIRT:
                     return 3;
+                case WATER:
+                    return 4;
+                case SAND:
+                    return 5;
                 default:
                     printf("Tried to get a U cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -25,6 +29,10 @@ unsigned int getUFromBlockID(uint8_t id, uint8_t corner){
                     return 2;
                 case DIRT:
                     return 3;
+                case WATER:
+                    return 4;
+                case SAND:
+                    return 5;
                 default:
                     printf("Tried to get a U cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -38,6 +46,10 @@ unsigned int getUFromBlockID(uint8_t id, uint8_t corner){
                     return 3;
                 case DIRT:
                     return 4;
+                case WATER:
+                    return 5;
+                case SAND:
+                    return 6;
                 default:
                     printf("Tried to get a U cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -51,6 +63,10 @@ unsigned int getUFromBlockID(uint8_t id, uint8_t corner){
                     return 3;
                 case DIRT:
                     return 4;
+                case WATER:
+                    return 5;
+                case SAND:
+                    return 6;
                 default:
                     printf("Tried to get a U cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -73,6 +89,10 @@ unsigned int getVFromBlockID(uint8_t id, uint8_t corner){
                     return 14;
                 case DIRT:
                     return 14;
+                case WATER:
+                    return 14;
+                case SAND:
+                    return 14;
                 default:
                     printf("Tried to get a V cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -85,6 +105,10 @@ unsigned int getVFromBlockID(uint8_t id, uint8_t corner){
                 case GRASS:
                     return 14;
                 case DIRT:
+                    return 14;
+                case WATER:
+                    return 14;
+                case SAND:
                     return 14;
                 default:
                     printf("Tried to get a V cord for a block ID that doesnt exist :-( %u\n", id);
@@ -99,6 +123,10 @@ unsigned int getVFromBlockID(uint8_t id, uint8_t corner){
                     return 15;
                 case DIRT:
                     return 15;
+                case WATER:
+                    return 15;
+                case SAND:
+                    return 15;
                 default:
                     printf("Tried to get a V cord for a block ID that doesnt exist :-( %u\n", id);
                     quick_exit(123);
@@ -111,6 +139,10 @@ unsigned int getVFromBlockID(uint8_t id, uint8_t corner){
                 case GRASS:
                     return 15;
                 case DIRT:
+                    return 15;
+                case WATER:
+                    return 15;
+                case SAND:
                     return 15;
                 default:
                     printf("Tried to get a V cord for a block ID that doesnt exist :-( %u\n", id);

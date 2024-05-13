@@ -122,7 +122,6 @@ int main(int argc, char** argv){
         for(int y = 0; y < loadedWorld.maxY; ++y){
             for(int z = 0; z < loadedWorld.maxZ; ++z){
                 loadedWorld.chunks[x][y][z]->rawMesh = NULL;
-                loadedWorld.chunks[x][y][z]->data.needsRemesh = 1;
             }
         }
     }
@@ -149,7 +148,9 @@ int main(int argc, char** argv){
             unsigned int chunkpos[3];
             mat4 modelMatrix, projectionMatrix, viewMatrix;
             int px, py, pz, rx, ry, rz;
+
             int amountMeshUpdates = 0;
+            int amountChunkFrees = 0;
 
             while (CGlRefreshWindow(&window, (vec3){0.0f, 0.6f, 0.7})){
                 // printf("Threads halted? %d\n", haltThreads);
@@ -163,6 +164,7 @@ int main(int argc, char** argv){
                 getModelMatrix(modelMatrix, shaderProgramme, (vec3){0.0f, 0.0f, 0.0f});
 
                 amountMeshUpdates = 0;
+                amountChunkFrees = 0;
 
                 if(loadedWorld.needsUpdate){
                     haltThreads = 1;
@@ -187,14 +189,17 @@ int main(int argc, char** argv){
                         for(int z = 0; z < loadedWorld.maxZ; ++z){
 
                             //if there is a chunk to free, free it (has to be done on main thread otherwise there will be a vram leak)
-                            if(chunksToFree[x][y][z] != NULL){
+                            // if(chunksToFree[x][y][z] != NULL && amountChunkFrees <= 20){
                                 // printf("\n\nfreeing chunk %d %d %d\n\n\n", x, y, z);
+                            if(chunksToFree[x][y][z] != NULL){
                                 freeChunk(chunksToFree[x][y][z]);
                                 chunksToFree[x][y][z] = NULL;
                             }
+                                // ++amountChunkFrees;
+                            // }
 
                             //if a new mesh has been generated
-                            if(!loadedWorld.chunks[x][y][z]->data.needsRemesh && loadedWorld.chunks[x][y][z]->rawMesh != NULL && amountMeshUpdates <= 20){
+                            if(!loadedWorld.chunks[x][y][z]->data.needsRemesh && loadedWorld.chunks[x][y][z]->rawMesh != NULL/* && amountMeshUpdates <= 20*/){
                                 while(loadedWorld.chunks[x][y][z]->busy){
                                     //wait for chunk to be avalable
                                 }

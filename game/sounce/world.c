@@ -120,12 +120,12 @@ int isChunkNearEdgeOfWorld(world* loadedWorld, int lx, int ly, int lz){
 //frees a chunk in the given loadedWorld with the given l cords
 int freeChunk(fullChunk* chunk){
     if(chunk->rawMesh != NULL){
-        if(chunk->rawMesh->verticies != NULL){
+        // if(chunk->rawMesh->verticies != NULL){
             free(chunk->rawMesh->verticies);
-        }
-        if(chunk->rawMesh->indicies != NULL){
+        // }
+        // if(chunk->rawMesh->indicies != NULL){
             free(chunk->rawMesh->indicies);
-        }
+        // }
         free(chunk->rawMesh);
         chunk->rawMesh = NULL;
     }
@@ -169,7 +169,9 @@ int updateWorld(world* loadedWorld, ivec3 offset){
     int samplePosX, samplePosY, samplePosZ;
     #pragma omp parallel for
     for(int x = 0; x < loadedWorld->maxX; ++x){
+        #pragma omp parallel for
         for(int y = 0; y < loadedWorld->maxY; ++y){
+            #pragma omp parallel for
             for(int z = 0; z < loadedWorld->maxZ; ++z){
                 samplePosX = x + offset[0];
                 samplePosY = y + offset[1];
@@ -254,7 +256,12 @@ void meshThreadFunction(world* loadedWorld, int x, int y, int z){
             loadedWorld->chunks[x][y][z]->rawMesh = calloc(1, sizeof(rawMesh));
             // printf("allocated raw mesh %d %d %d\n", x, y, z);
         }  
-        getMesh(&loadedWorld->chunks[x][y][z]->data, loadedWorld->chunks[x][y][z]->rawMesh, loadedWorld, x, y, z);
+        if(getMesh(&loadedWorld->chunks[x][y][z]->data, loadedWorld->chunks[x][y][z]->rawMesh, loadedWorld, x, y, z)){
+            // free(loadedWorld->chunks[x][y][z]->rawMesh);
+            // loadedWorld->chunks[x][y][z]->rawMesh = NULL;
+            loadedWorld->chunks[x][y][z]->busy = 0;
+            return;
+        }
         loadedWorld->chunks[x][y][z]->data.needsRemesh = 0; //we also use this to tell the main thread that we have finished meshing this chunk
     }
     loadedWorld->chunks[x][y][z]->busy = 0;

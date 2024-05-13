@@ -6,9 +6,9 @@
 #define CHUNK_SIZE_Y 32
 #define CHUNK_SIZE_Z 32
 
-#define LOADED_CHUNKS_X 64
-#define LOADED_CHUNKS_Y 48
-#define LOADED_CHUNKS_Z 64
+#define LOADED_CHUNKS_X 48
+#define LOADED_CHUNKS_Y 24
+#define LOADED_CHUNKS_Z 48
 
 
 typedef struct{
@@ -51,11 +51,13 @@ typedef struct{
     // fullChunk**** chunks;
     fullChunk* chunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
     // fullChunk chunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
+
     fnl_state mainNoise;
     fnl_state caveNoise;
-
-    fnl_state pv;
+    fnl_state ct;
     fnl_state rain;
+    fnl_state pv;
+
     fnl_state temp;
     int32_t maxX, maxY, maxZ;
     int32_t halfMaxX, halfMaxY, halfMaxZ;

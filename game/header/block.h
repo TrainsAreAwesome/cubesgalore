@@ -11,6 +11,8 @@ typedef struct {
 #define STONE 1
 #define GRASS 2
 #define DIRT 3
+#define WATER 4
+#define SAND 5
 
 #define CORNER_BOTTOM_LEFT 1
 #define CORNER_BOTTOM_RIGHT 2

@@ -337,24 +337,24 @@ int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* l
     if(tmesh->countVerticies){
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, tmesh->indicies, GL_STATIC_DRAW);
         glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, tmesh->verticies, GL_STATIC_DRAW);
-    } else {
-        // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, (void*)0, GL_STATIC_DRAW);
-        // glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, (void*)0, GL_STATIC_DRAW);
+    } else if(loadedWorld->chunks[x][y][z]->mesh.used) { //if there was previous data but all blocks got destroyed then set the buffer to zero
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, (void*)0, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, (void*)0, GL_STATIC_DRAW);
     }
     // printf("\njust done glbufferdata\n");
     loadedWorld->chunks[x][y][z]->mesh.countIndicies = tmesh->countIndicies;
     loadedWorld->chunks[x][y][z]->mesh.countVerticies = tmesh->countVerticies;
     // printf("\nset vi count");
     //deleting the mesh
-    if(tmesh->verticies != NULL){
-        free(tmesh->verticies);
-        tmesh->verticies = NULL;
-    }
 
-    if(tmesh->indicies != NULL){
-        free(tmesh->indicies);
-        tmesh->indicies = NULL;
-    }
+    free(tmesh->verticies);
+
+    
+
+
+    free(tmesh->indicies);
+
+    
         
     // printf("\nfreed data and about to exit copyMeshIntoVRAM\n");
 }
@@ -373,11 +373,15 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
     if(result->used){
         if(result->verticies != NULL){
             // free(result->verticies); // MEMORY ISSUES HERE
-            result->verticies = NULL;
+            // printf("MEMORY LEAK VERTICIES\n");
+            return 1;
+            // result->verticies = NULL;
         }
         if(result->indicies != NULL){
             // free(result->indicies); // MEMORY ISSUES HERE
-            result->indicies = NULL;
+            // printf("MEMORY LEAK INDICIES\n");
+            return 1;
+            // result->indicies = NULL;
         }
     }
 
@@ -645,5 +649,7 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
 
     data->needsRemesh = 0;
     result->used = 1;
+
+    return 0;
     // printf("finished getMesh...\n");
 }
