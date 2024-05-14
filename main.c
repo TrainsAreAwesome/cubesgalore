@@ -103,11 +103,11 @@ int main(int argc, char** argv){
         for(int y = 0; y < loadedWorld.maxY; ++y){
             #pragma omp parallel for
             for(int z = 0; z < loadedWorld.maxZ; ++z){
-                loadedWorld.chunks[x][y][z] = calloc(1, sizeof(fullChunk));
-                if(loadedWorld.chunks[x][y][z] == NULL){
-                    printf("out of memory!\n");
-                    quick_exit(1);
-                }
+                // loadedWorld.chunks[x][y][z] = calloc(1, sizeof(fullChunk));
+                // if(loadedWorld.chunks[x][y][z] == NULL){
+                //     printf("out of memory!\n");
+                //     quick_exit(1);
+                // }
                 
                 // printf("allocating memory for chunk %d %d %d\n", x, y, z);
                 chunksToFree[x][y][z] = NULL;
@@ -118,13 +118,13 @@ int main(int argc, char** argv){
     glUseProgram(shaderProgramme);
 
     //initialising the array to NULL
-    for(int x = 0; x < loadedWorld.maxX; ++x){
-        for(int y = 0; y < loadedWorld.maxY; ++y){
-            for(int z = 0; z < loadedWorld.maxZ; ++z){
-                loadedWorld.chunks[x][y][z]->rawMesh = NULL;
-            }
-        }
-    }
+    // for(int x = 0; x < loadedWorld.maxX; ++x){
+    //     for(int y = 0; y < loadedWorld.maxY; ++y){
+    //         for(int z = 0; z < loadedWorld.maxZ; ++z){
+    //             loadedWorld.chunks[x][y][z]->rawMesh = NULL;
+    //         }
+    //     }
+    // }
 
     GLenum error, oldError;
 
@@ -188,6 +188,9 @@ int main(int argc, char** argv){
                     for(int y = 0; y < loadedWorld.maxY; ++y){
                         for(int z = 0; z < loadedWorld.maxZ; ++z){
 
+                            if(loadedWorld.chunks[x][y][z] == NULL){
+                                continue;
+                            }
                             //if there is a chunk to free, free it (has to be done on main thread otherwise there will be a vram leak)
                             // if(chunksToFree[x][y][z] != NULL && amountChunkFrees <= 20){
                                 // printf("\n\nfreeing chunk %d %d %d\n\n\n", x, y, z);
@@ -274,13 +277,40 @@ int main(int argc, char** argv){
                             }
                             workerThreadsActive[threadID] = 1;
 
-                            if(!loadedWorld.chunks[x][y][z]->data.isGenerated && !loadedWorld.chunks[x][y][z]->busy){
-                                tGenTheadFunction(&loadedWorld, x, y, z);
-                                // printf("Generating chunk %d %d %d on thread %d\n", x, y, z, threadID);
-                            } 
-                            if(loadedWorld.chunks[x][y][z]->data.needsRemesh && !loadedWorld.chunks[x][y][z]->busy && loadedWorld.chunks[x][y][z]->data.isGenerated){
-                                meshThreadFunction(&loadedWorld, x, y, z);
-                                // printf("Meshing chunk %d %d %d on thread %d\n", x, y, z, threadID);
+                            if(loadedWorld.chunks[x][y][z] == NULL){
+                                loadedWorld.chunks[x][y][z] = calloc(1, sizeof(fullChunk));
+                                if(loadedWorld.chunks[x][y][z] == NULL){
+                                    printf("Out of memory while trying to allocate chunk %d %d %d on thread %d!\n", x, y, z, threadID);
+                                    quick_exit(1);
+                                }
+                                // loadedWorld.chunks[x][y][z]->rawMesh = NULL;
+
+                                #ifdef DEBUG_WORKER_THREADS
+                                printf("Allocated chunk %d %d %d\n", x, y, z);
+                                #endif
+                            } else {
+                                if(!loadedWorld.chunks[x][y][z]->data.isGenerated && !loadedWorld.chunks[x][y][z]->busy){
+                                    #ifdef DEBUG_WORKER_THREADS
+                                    printf("About to generate chunk %d %d %d on thread %d\n", x, y, z, threadID);
+                                    #endif
+
+                                    tGenTheadFunction(&loadedWorld, x, y, z);
+
+                                    #ifdef DEBUG_WORKER_THREADS
+                                    printf("Generated chunk %d %d %d on thread %d\n", x, y, z, threadID);
+                                    #endif
+                                } 
+                                if(loadedWorld.chunks[x][y][z]->data.needsRemesh && !loadedWorld.chunks[x][y][z]->busy && loadedWorld.chunks[x][y][z]->data.isGenerated){
+                                    #ifdef DEBUG_WORKER_THREADS
+                                    printf("About to mesh chunk %d %d %d on thread %d\n", x, y, z, threadID);
+                                    #endif
+
+                                    meshThreadFunction(&loadedWorld, x, y, z);
+
+                                    #ifdef DEBUG_WORKER_THREADS
+                                    printf("Meshed chunk %d %d d on thread %d\n", x, y, z, threadID);
+                                    #endif
+                                }
                             }
                         }   
                     }

@@ -441,8 +441,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posotive x
                 if(x == CHUNK_SIZE_X - 1){ //if we are at a chunk border
                     if(lx != loadedWorld->maxX - 1){ //check if we are at the border of loaded world
-                        if(!loadedWorld->chunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
-                            drawPXFace = 1;
+                        if(loadedWorld->chunks[lx + 1][ly][lz] != NULL){
+                            if(!loadedWorld->chunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
+                                drawPXFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x + 1][y][z] == 0){
@@ -452,8 +454,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative x
                 if(x == 0){
                     if(lx != 0){
-                        if(!loadedWorld->chunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
-                            drawNXFace = 1;
+                        if(loadedWorld->chunks[lx - 1][ly][lz] != NULL){
+                            if(!loadedWorld->chunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
+                                drawNXFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x - 1][y][z] == 0){
@@ -463,8 +467,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posotive y
                 if(y == CHUNK_SIZE_Y - 1){
                     if(ly != loadedWorld->maxY - 1){
-                        if(!loadedWorld->chunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
-                            drawPYFace = 1;
+                        if(loadedWorld->chunks[lx][ly + 1][lz] != NULL){
+                            if(!loadedWorld->chunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
+                                drawPYFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x][y + 1][z] == 0){
@@ -474,8 +480,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative y
                 if(y == 0){
                     if(ly != 0){
-                        if(!loadedWorld->chunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
-                            drawNYFace = 1;
+                        if(loadedWorld->chunks[lx][ly - 1][lz] != NULL){
+                            if(!loadedWorld->chunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
+                                drawNYFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x][y- 1][z] == 0){
@@ -485,8 +493,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posative z
                 if(z == CHUNK_SIZE_Z - 1){
                     if(lz != loadedWorld->maxZ - 1){
-                        if(!loadedWorld->chunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
-                            drawPZFace = 1;
+                        if(loadedWorld->chunks[lx][ly][lz + 1] != NULL){
+                            if(!loadedWorld->chunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
+                                drawPZFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x][y][z + 1] == 0){
@@ -496,8 +506,10 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative z
                 if(z == 0){
                     if(lz != 0){
-                        if(!loadedWorld->chunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
-                            drawNZFace = 1;
+                        if(loadedWorld->chunks[lx][ly][lz - 1] != NULL){
+                            if(!loadedWorld->chunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
+                                drawNZFace = 1;
+                            }
                         }
                     }
                 } else if(isSolid[x][y][z - 1] == 0){

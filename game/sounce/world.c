@@ -158,7 +158,9 @@ int updateWorld(world* loadedWorld, ivec3 offset){
         for(int y = 0; y < loadedWorld->maxY; ++y){
             for(int z = 0; z < loadedWorld->maxZ; ++z){
                 newChunks[x][y][z] = NULL;
-                loadedWorld->chunks[x][y][z]->needed = 0;
+                if(loadedWorld->chunks[x][y][z] != NULL){
+                    loadedWorld->chunks[x][y][z]->needed = 0;
+                }
             }
         }
     }
@@ -179,20 +181,27 @@ int updateWorld(world* loadedWorld, ivec3 offset){
                 
                 if(isChunkInBounds(loadedWorld, samplePosX, samplePosY, samplePosZ)){
                     newChunks[x][y][z] = loadedWorld->chunks[samplePosX][samplePosY][samplePosZ];
-                    loadedWorld->chunks[samplePosX][samplePosY][samplePosZ]->needed = 1;
+
+                    if(loadedWorld->chunks[samplePosX][samplePosY][samplePosZ] != NULL){
+                        loadedWorld->chunks[samplePosX][samplePosY][samplePosZ]->needed = 1;
+                    }
                 } else {
-                    // printf("about to allocate chunk %d %d %d", x, y, z);
-                    newChunks[x][y][z] = calloc(1, sizeof(fullChunk));
-                    // printf("allocated chunk %d %d %d\n", x, y, z);
-                    // newChunks[x][y][z]->data.needsRemesh = 1;
-                    newChunks[x][y][z]->data.isGenerated = 0;
-                    newChunks[x][y][z]->rawMesh = NULL;
+                    // // printf("about to allocate chunk %d %d %d", x, y, z);
+                    // newChunks[x][y][z] = calloc(1, sizeof(fullChunk));
+                    // // printf("allocated chunk %d %d %d\n", x, y, z);
+                    // // newChunks[x][y][z]->data.needsRemesh = 1;
+                    // newChunks[x][y][z]->data.isGenerated = 0;
+                    // newChunks[x][y][z]->rawMesh = NULL;
+
+                    // newChunks[x][y][z] = NULL;
+
+                    //this is commented out as i now allocate chunks on the worker threads
                 }
             }
         }
     }
 
-    printf("created new chunks\n");
+    printf("got needed chunks\n");
     int ox = loadedWorld->maxX / 2;
     int oy = loadedWorld->maxY / 2;
     int oz = loadedWorld->maxZ / 2;
@@ -201,9 +210,15 @@ int updateWorld(world* loadedWorld, ivec3 offset){
     for(int x = 0; x < loadedWorld->maxX; ++x){
         for(int y = 0; y < loadedWorld->maxY; ++y){
             for(int z = 0; z < loadedWorld->maxZ; ++z){
-                if(!loadedWorld->chunks[x][y][z]->needed){
+
+                if(loadedWorld->chunks[x][y][z] != NULL){
+                    if(!loadedWorld->chunks[x][y][z]->needed){
+                        chunksToFree[x][y][z] = loadedWorld->chunks[x][y][z];
+                    }
+                } else {
                     chunksToFree[x][y][z] = loadedWorld->chunks[x][y][z];
                 }
+            
                 loadedWorld->chunks[x][y][z] = newChunks[x][y][z];
 
                 // loadedWorld->chunks[x][y][z]->data.x = x + loadedWorld->offset[0] - ox;
@@ -226,27 +241,51 @@ void meshThreadFunction(world* loadedWorld, int x, int y, int z){
 
     int allChunksGenerated = 1;
     if(x != 0){
-        allChunksGenerated &= loadedWorld->chunks[x - 1][y][z]->data.isGenerated;
+        if(loadedWorld->chunks[x - 1][y][z] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x - 1][y][z]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(x != loadedWorld->maxX - 1){
-        allChunksGenerated &= loadedWorld->chunks[x + 1][y][z]->data.isGenerated;
+        if(loadedWorld->chunks[x + 1][y][z] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x + 1][y][z]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(y != 0){
-        allChunksGenerated &= loadedWorld->chunks[x][y - 1][z]->data.isGenerated;
+        if(loadedWorld->chunks[x][y - 1][z] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x][y - 1][z]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(y != loadedWorld->maxY - 1){
-        allChunksGenerated &= loadedWorld->chunks[x][y + 1][z]->data.isGenerated;
+        if(loadedWorld->chunks[x][y + 1][z] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x][y + 1][z]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(z != 0){
-        allChunksGenerated &= loadedWorld->chunks[x][y][z - 1]->data.isGenerated;
+        if(loadedWorld->chunks[x][y][z - 1] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x][y][z - 1]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(z != loadedWorld->maxZ - 1){
-        allChunksGenerated &= loadedWorld->chunks[x][y][z + 1]->data.isGenerated;
+        if(loadedWorld->chunks[x][y][z + 1] != NULL){
+            allChunksGenerated &= loadedWorld->chunks[x][y][z + 1]->data.isGenerated;
+        } else {
+            allChunksGenerated = 0;
+        }
     }
 
     if(allChunksGenerated){
@@ -277,36 +316,60 @@ void tGenTheadFunction(world* loadedWorld, int x, int y, int z){
     loadedWorld->chunks[x][y][z]->data.y = y + loadedWorld->offset[1] - (loadedWorld->maxY / 2);
     loadedWorld->chunks[x][y][z]->data.z = z + loadedWorld->offset[2] - (loadedWorld->maxZ / 2);
 
+    #ifdef DEBUG_WORKER_THREADS
+    printf("Set cords for chunk %d %d %d\n", x, y, z);
+    #endif
+
     generateChunk(loadedWorld->chunks[x][y][z], loadedWorld);
+
+    #ifdef DEBUG_WORKER_THREADS
+    printf("Generated block data for chunk %d %d %d\n", x, y, z);
+    #endif
+
     loadedWorld->chunks[x][y][z]->data.needsRemesh = 1;
 
     //set surrounding chunks to update their mesh
     if(x != 0){
-        loadedWorld->chunks[x - 1][y][z]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x - 1][y][z] != NULL){
+            loadedWorld->chunks[x - 1][y][z]->data.needsRemesh = 1;
+        }
     }
 
     if(x != loadedWorld->maxX - 1){
-        loadedWorld->chunks[x + 1][y][z]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x + 1][y][z] != NULL){
+            loadedWorld->chunks[x + 1][y][z]->data.needsRemesh = 1;
+        }
     }
 
     if(y != 0){
-        loadedWorld->chunks[x][y - 1][z]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x][y - 1][z] != NULL){
+            loadedWorld->chunks[x][y - 1][z]->data.needsRemesh = 1;
+        }
     }
 
     if(y != loadedWorld->maxY - 1){
-        loadedWorld->chunks[x][y + 1][z]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x][y + 1][z] != NULL){
+            loadedWorld->chunks[x][y + 1][z]->data.needsRemesh = 1;
+        }
     }
 
     if(z != 0){
-        loadedWorld->chunks[x][y][z - 1]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x][y][z - 1] != NULL){
+            loadedWorld->chunks[x][y][z - 1]->data.needsRemesh = 1;
+        }
     }
 
     if(z != loadedWorld->maxZ - 1){
-        loadedWorld->chunks[x][y][z + 1]->data.needsRemesh = 1;
+        if(loadedWorld->chunks[x][y][z + 1] != NULL){
+            loadedWorld->chunks[x][y][z + 1]->data.needsRemesh = 1;
+        }
     }
 
     loadedWorld->chunks[x][y][z]->data.isGenerated = 1;
-    // printf("generated chunk %d %d %d in tgen thread\n", x, y, z);
+
+    #ifdef DEBUG_WORKER_THREADS
+    printf("generated chunk %d %d %d\n", x, y, z);
+    #endif
 
     loadedWorld->chunks[x][y][z]->busy = 0;
 }
