@@ -37,7 +37,7 @@ void initTerrainGen(world* loadedWorld, int seed){
 
     loadedWorld->ct = fnlCreateState(seed);
     loadedWorld->ct.noise_type = FNL_NOISE_PERLIN;
-    loadedWorld->ct.frequency = 0.0001;
+    loadedWorld->ct.frequency = 0.001;
 
 }
 
@@ -47,12 +47,13 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
     for(int x = 0; x < CHUNK_SIZE_X; ++x){
         // #pragma omp parallel for
         for(int z = 0; z < CHUNK_SIZE_Z; ++z){
-            float heightf = fnlGetNoise2D(&loadedWorld->mainNoise, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
-            float pv = fnlGetNoise2D(&loadedWorld->pv, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
-            float ct = fnlGetNoise2D(&loadedWorld->ct, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
+            double heightf = fnlGetNoise2D(&loadedWorld->mainNoise, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
+            double pv = fnlGetNoise2D(&loadedWorld->pv, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
+            double ct = fnlGetNoise2D(&loadedWorld->ct, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
             // float rain = fnlGetNoise2D(&loadedWorld->rain, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
             // float temp = fnlGetNoise2D(&loadedWorld->temp, (float)(x + (chunk->data.x * CHUNK_SIZE_X)), (float)(z + (chunk->data.z * CHUNK_SIZE_Z)));
 
+            double tpv = (pv + 1) / 2;
 
 
             if(ct > -0.05 && ct < 0.05 ){
@@ -63,13 +64,14 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                 currentTerrainLand = SEA;
             }
 
-            float tpv = (pv + 1) / 2;
 
-            if(currentTerrainLand == LAND){
-                tpv *= 5;
-            } else if(currentTerrainLand == SEA_ISLAND){
-                tpv *= 2;
-            }
+            // double tct = (ct + 1) / 2;
+
+            ct *= 10;
+
+            // printf("ct: %f\n", ct);
+
+            pv *= ct;
 
             pv *= tpv;
 
@@ -84,7 +86,7 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                     if(heightf > 150){
                         chunk->data.blocks[x][y][z].id = STONE;
                     } else {
-                        if(heightf < (WATER_HEIGHT + 5) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                        if(heightf < (WATER_HEIGHT + 5)){
                             chunk->data.blocks[x][y][z].id = SAND;
                         } else {
                             chunk->data.blocks[x][y][z].id = GRASS;
@@ -95,7 +97,7 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                         if (heightf > 150){
                             chunk->data.blocks[x][y][z].id = STONE;
                         } else {
-                            if(heightf < (WATER_HEIGHT + 5) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                            if(heightf < (WATER_HEIGHT + 5)){
                                 chunk->data.blocks[x][y][z].id = SAND;
                             } else {
                                 chunk->data.blocks[x][y][z].id = DIRT;
@@ -105,10 +107,8 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                         chunk->data.blocks[x][y][z].id = STONE;
                     }
                 } else {
-                    if((y + (chunk->data.y * CHUNK_SIZE_Y) < WATER_HEIGHT) && (currentTerrainLand == SEA || currentTerrainLand == SEA_ISLAND)){
+                    if((y + (chunk->data.y * CHUNK_SIZE_Y) < WATER_HEIGHT)){
                         chunk->data.blocks[x][y][z].id = WATER;
-                    } else {
-                        chunk->data.blocks[x][y][z].id = AIR;
                     }
                 }
                 
