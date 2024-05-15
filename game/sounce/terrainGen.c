@@ -12,8 +12,9 @@
 //water height; any air under will be water (calculated before generating caves)
 #define WATER_HEIGHT 0
 
-void initTerrainGen(world* loadedWorld, int seed){
+void initTerrainGen(world* loadedWorld, int64_t seed){
     loadedWorld->mainNoise = fnlCreateState(seed);
+    loadedWorld->mainNoise.seed = seed;
     loadedWorld->mainNoise.fractal_type = FNL_FRACTAL_FBM;
     loadedWorld->mainNoise.octaves = 10;
     loadedWorld->mainNoise.frequency = 0.0005;
@@ -24,6 +25,7 @@ void initTerrainGen(world* loadedWorld, int seed){
 
 
     loadedWorld->caveNoise = fnlCreateState(seed);
+    loadedWorld->caveNoise.seed = seed;
     loadedWorld->caveNoise.noise_type = FNL_NOISE_PERLIN;
     loadedWorld->caveNoise.frequency = 0.01;
     loadedWorld->caveNoise.octaves = 1;
@@ -32,10 +34,12 @@ void initTerrainGen(world* loadedWorld, int seed){
     loadedWorld->caveNoise.weighted_strength = 5.0f;
 
     loadedWorld->pv = fnlCreateState(seed);
+    loadedWorld->pv.seed = seed;
     loadedWorld->pv.noise_type = FNL_NOISE_PERLIN;
     loadedWorld->pv.frequency = 0.001;
 
-    loadedWorld->ct = fnlCreateState(seed);
+    loadedWorld->ct = fnlCreateState();
+    loadedWorld->ct.seed = seed;
     loadedWorld->ct.noise_type = FNL_NOISE_PERLIN;
     loadedWorld->ct.frequency = 0.001;
 

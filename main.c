@@ -15,9 +15,8 @@
 CGlWindow_t window;
 Camera_t camera;
 
-world loadedWorld;
 
-fullChunk* chunksToFree[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
+world loadedWorld;
 
 volatile static int haltThreads = 0; //if i dont define these as volatile compiler optimisations break the programme
 volatile int workerThreadsActive[AMOUNT_WORKER_THREADS];
@@ -30,15 +29,48 @@ void scrollCallback(double xOffset, double yOffset);
 void handleKeyboardInput(CGlWindow_t* window);
 
 int main(int argc, char** argv){
+
+    int64_t seed;
+
+    printf("Please enter your seed: ");
+    scanf("%d", &seed);
+    printf("%d\n", seed);
+    printf("\n\n\n");
+
+    printf("Please enter your render distnace:\nX: ");
+    scanf("%d", &loadedWorld.maxX);
+    printf("Y: ");
+    scanf("%d", &loadedWorld.maxY);
+    printf("Z: ");
+    scanf("%d", &loadedWorld.maxZ);
+
+    fullChunk* (*loadedChunks)[loadedWorld.maxY][loadedWorld.maxZ] = malloc(sizeof(fullChunk*[loadedWorld.maxX][loadedWorld.maxY][loadedWorld.maxZ]));
+    if(loadedChunks == NULL){
+        printf("Couldn't get enough memory for the array of pointers to chunks!\n");
+    }
+
+    fullChunk* (*chunksToFree)[loadedWorld.maxY][loadedWorld.maxZ] = malloc(sizeof(fullChunk*[loadedWorld.maxX][loadedWorld.maxY][loadedWorld.maxZ]));
+    if(chunksToFree == NULL){
+        printf("Couldn't get enough memory for the array of pointers to chunks to free!\n");
+    }
+
+
+    loadedWorld.halfMaxX / loadedWorld.maxX / 2;
+    loadedWorld.halfMaxY / loadedWorld.maxY / 2;
+    loadedWorld.halfMaxZ / loadedWorld.maxZ / 2;
+
+    printf("render distance: X %d Y %d Z %d\n", loadedWorld.maxX, loadedWorld.maxY, loadedWorld.maxZ);
+
     
     if(initCGl(&window, START_WIDTH, START_HEIGHT, "MWGIES TOOLS!!!", 3, 3)){
         printf("Something went wrong initialising CGl");
         return 1;
     }
 
-    unsigned int x = 0;
-    unsigned int y = 0;
-    unsigned int z = 0;
+
+ 
+    // int (*array)[ty][tz] = malloc(sizeof(int[tx][ty][tz])); //what the fuck
+    //3D ARRAY EXAMPLE
 
 
     loadedWorld.offset[0] = 0;
@@ -82,18 +114,12 @@ int main(int argc, char** argv){
     glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, sizeof(unsigned int), (void*)0);
     glEnableVertexAttribArray(0);
 
-    loadedWorld.maxX = LOADED_CHUNKS_X;
-    loadedWorld.maxY = LOADED_CHUNKS_Y;
-    loadedWorld.maxZ = LOADED_CHUNKS_Z;
-
-    loadedWorld.halfMaxX / loadedWorld.maxX / 2;
-    loadedWorld.halfMaxY / loadedWorld.maxY / 2;
-    loadedWorld.halfMaxZ / loadedWorld.maxZ / 2;
+    
 
     printf("maxX %d maxY %d maxZ %d\n", loadedWorld.maxX, loadedWorld.maxY, loadedWorld.maxZ);
-    // loadedWorld.chunks = initWorld(loadedWorld.maxX, loadedWorld.maxY, loadedWorld.maxZ); //loading world data
+    // loadedChunks = initWorld(loadedWorld.maxX, loadedWorld.maxY, loadedWorld.maxZ); //loading world data
 
-    initTerrainGen(&loadedWorld, 12345);
+    initTerrainGen(&loadedWorld, seed);
 
     // glEnable(GL_CULL_FACE);
     
@@ -103,14 +129,15 @@ int main(int argc, char** argv){
         for(int y = 0; y < loadedWorld.maxY; ++y){
             #pragma omp parallel for
             for(int z = 0; z < loadedWorld.maxZ; ++z){
-                // loadedWorld.chunks[x][y][z] = calloc(1, sizeof(fullChunk));
-                // if(loadedWorld.chunks[x][y][z] == NULL){
+                // loadedChunks[x][y][z] = calloc(1, sizeof(fullChunk));
+                // if(loadedChunks[x][y][z] == NULL){
                 //     printf("out of memory!\n");
                 //     quick_exit(1);
                 // }
                 
                 // printf("allocating memory for chunk %d %d %d\n", x, y, z);
                 chunksToFree[x][y][z] = NULL;
+                loadedChunks[x][y][z] = NULL;
             }
         }
     }    
@@ -121,7 +148,7 @@ int main(int argc, char** argv){
     // for(int x = 0; x < loadedWorld.maxX; ++x){
     //     for(int y = 0; y < loadedWorld.maxY; ++y){
     //         for(int z = 0; z < loadedWorld.maxZ; ++z){
-    //             loadedWorld.chunks[x][y][z]->rawMesh = NULL;
+    //             loadedChunks[x][y][z]->rawMesh = NULL;
     //         }
     //     }
     // }
@@ -179,7 +206,7 @@ int main(int argc, char** argv){
                     printf("about to update world\n");
                     ivec3 offset;
                     glm_ivec3_sub(loadedWorld.offset, loadedWorld.oldOffset, offset);
-                    updateWorld(&loadedWorld, offset);
+                    updateWorld(&loadedWorld, offset, chunksToFree, loadedChunks);
                     loadedWorld.needsUpdate = 0;
                     haltThreads = 0;
                 }
@@ -188,7 +215,7 @@ int main(int argc, char** argv){
                     for(int y = 0; y < loadedWorld.maxY; ++y){
                         for(int z = 0; z < loadedWorld.maxZ; ++z){
 
-                            if(loadedWorld.chunks[x][y][z] == NULL){
+                            if(loadedChunks[x][y][z] == NULL){
                                 continue;
                             }
                             //if there is a chunk to free, free it (has to be done on main thread otherwise there will be a vram leak)
@@ -202,52 +229,52 @@ int main(int argc, char** argv){
                             // }
 
                             //if a new mesh has been generated
-                            if(!loadedWorld.chunks[x][y][z]->data.needsRemesh && loadedWorld.chunks[x][y][z]->rawMesh != NULL/* && amountMeshUpdates <= 20*/){
-                                while(loadedWorld.chunks[x][y][z]->busy){
+                            if(!loadedChunks[x][y][z]->data.needsRemesh && loadedChunks[x][y][z]->rawMesh != NULL/* && amountMeshUpdates <= 20*/){
+                                while(loadedChunks[x][y][z]->busy){
                                     //wait for chunk to be avalable
                                 }
-                                loadedWorld.chunks[x][y][z]->busy = 1;
+                                loadedChunks[x][y][z]->busy = 1;
                                 // printf("putting l %d %d %d into vram on main thread\n", x, y, z);
-                                copyMeshIntoVRAM(x, y, z, shaderProgramme, &loadedWorld, loadedWorld.chunks[x][y][z]->rawMesh);
+                                copyMeshIntoVRAM(x, y, z, shaderProgramme, &loadedWorld, loadedChunks[x][y][z]->rawMesh, loadedChunks);
                                 // printf("copyied into vram now freeing\n");
-                                free(loadedWorld.chunks[x][y][z]->rawMesh);
-                                loadedWorld.chunks[x][y][z]->rawMesh = NULL;
+                                free(loadedChunks[x][y][z]->rawMesh);
+                                loadedChunks[x][y][z]->rawMesh = NULL;
                                 // printf("freed the mesh and set it to NULL\n");
                                 ++amountMeshUpdates;
-                                loadedWorld.chunks[x][y][z]->busy = 0;
+                                loadedChunks[x][y][z]->busy = 0;
                             }
 
                             //if the chunk contains nothing, then dont render
-                            if(!loadedWorld.chunks[x][y][z]->mesh.countVerticies || !loadedWorld.chunks[x][y][z]->data.isGenerated){
+                            if(!loadedChunks[x][y][z]->mesh.countVerticies || !loadedChunks[x][y][z]->data.isGenerated){
                                 continue;
                             }
-                            glBindVertexArray(loadedWorld.chunks[x][y][z]->mesh.vao);
-                            glBindBuffer(GL_ARRAY_BUFFER, loadedWorld.chunks[x][y][z]->mesh.vbo);
-                            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedWorld.chunks[x][y][z]->mesh.ebo);
+                            glBindVertexArray(loadedChunks[x][y][z]->mesh.vao);
+                            glBindBuffer(GL_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.vbo);
+                            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.ebo);
                             //binding to the correct chunks data
 
                             //sending chunk pos data to the gpu
-                            chunkpos[0] = loadedWorld.chunks[x][y][z]->data.x;
-                            chunkpos[1] = loadedWorld.chunks[x][y][z]->data.y;
-                            chunkpos[2] = loadedWorld.chunks[x][y][z]->data.z;
+                            chunkpos[0] = loadedChunks[x][y][z]->data.x;
+                            chunkpos[1] = loadedChunks[x][y][z]->data.y;
+                            chunkpos[2] = loadedChunks[x][y][z]->data.z;
                             // glUniform3iv(glGetUniformLocation(shaderProgramme, "chunkPos"), 1, chunkpos);
                             glUniform3iv(chunkposLocation, 1, chunkpos);
 
                             //drawing
-                            glDrawElements(GL_TRIANGLES, loadedWorld.chunks[x][y][z]->mesh.countIndicies, GL_UNSIGNED_INT, 0);
+                            glDrawElements(GL_TRIANGLES, loadedChunks[x][y][z]->mesh.countIndicies, GL_UNSIGNED_INT, 0);
                             oldError = error;
                             error = glGetError();
                             if(oldError != error && error != 0){
-                                printf("Error while rendering chunk l %d %d %d VBO: %u VAO: %u EBO: %u ERROR: %u\n", x, y, z, loadedWorld.chunks[x][y][z]->mesh.vbo, loadedWorld.chunks[x][y][z]->mesh.vao, loadedWorld.chunks[x][y][z]->mesh.ebo, error);
+                                printf("Error while rendering chunk l %d %d %d VBO: %u VAO: %u EBO: %u ERROR: %u\n", x, y, z, loadedChunks[x][y][z]->mesh.vbo, loadedChunks[x][y][z]->mesh.vao, loadedChunks[x][y][z]->mesh.ebo, error);
                                 if(error == GL_OUT_OF_MEMORY){
-                                    printf("vcount %d icount %d\n", loadedWorld.chunks[x][y][z]->mesh.countVerticies, loadedWorld.chunks[x][y][z]->mesh.countIndicies);
+                                    printf("vcount %d icount %d\n", loadedChunks[x][y][z]->mesh.countVerticies, loadedChunks[x][y][z]->mesh.countIndicies);
                                     quick_exit(90);
                                 }
                             }
-                            // printf("vbo: %u vao: %u ebo: %u\n", loadedWorld.chunks[x][y][z]->mesh.vbo, loadedWorld.chunks[x][y][z]->mesh.vao, loadedWorld.chunks[x][y][z]->mesh.ebo);
+                            // printf("vbo: %u vao: %u ebo: %u\n", loadedChunks[x][y][z]->mesh.vbo, loadedChunks[x][y][z]->mesh.vao, loadedChunks[x][y][z]->mesh.ebo);
                                 
                             
-                            // printf("vcount %d icount %d\n", loadedWorld.chunks[x][y][z]->mesh.countVerticies, loadedWorld.chunks[x][y][z]->mesh.countIndicies);
+                            // printf("vcount %d icount %d\n", loadedChunks[x][y][z]->mesh.countVerticies, loadedChunks[x][y][z]->mesh.countIndicies);
                         }
                     }
                 }
@@ -277,35 +304,35 @@ int main(int argc, char** argv){
                             }
                             workerThreadsActive[threadID] = 1;
 
-                            if(loadedWorld.chunks[x][y][z] == NULL){
-                                loadedWorld.chunks[x][y][z] = calloc(1, sizeof(fullChunk));
-                                if(loadedWorld.chunks[x][y][z] == NULL){
+                            if(loadedChunks[x][y][z] == NULL){
+                                loadedChunks[x][y][z] = calloc(1, sizeof(fullChunk));
+                                if(loadedChunks[x][y][z] == NULL){
                                     printf("Out of memory while trying to allocate chunk %d %d %d on thread %d!\n", x, y, z, threadID);
                                     quick_exit(1);
                                 }
-                                // loadedWorld.chunks[x][y][z]->rawMesh = NULL;
+                                // loadedChunks[x][y][z]->rawMesh = NULL;
 
                                 #ifdef DEBUG_WORKER_THREADS
                                 printf("Allocated chunk %d %d %d\n", x, y, z);
                                 #endif
                             } else {
-                                if(!loadedWorld.chunks[x][y][z]->data.isGenerated && !loadedWorld.chunks[x][y][z]->busy){
+                                if(!loadedChunks[x][y][z]->data.isGenerated && !loadedChunks[x][y][z]->busy){
                                     #ifdef DEBUG_WORKER_THREADS
                                     printf("About to generate chunk %d %d %d on thread %d\n", x, y, z, threadID);
                                     #endif
 
-                                    tGenTheadFunction(&loadedWorld, x, y, z);
+                                    tGenTheadFunction(&loadedWorld, x, y, z, loadedChunks);
 
                                     #ifdef DEBUG_WORKER_THREADS
                                     printf("Generated chunk %d %d %d on thread %d\n", x, y, z, threadID);
                                     #endif
                                 } 
-                                if(loadedWorld.chunks[x][y][z]->data.needsRemesh && !loadedWorld.chunks[x][y][z]->busy && loadedWorld.chunks[x][y][z]->data.isGenerated){
+                                if(loadedChunks[x][y][z]->data.needsRemesh && !loadedChunks[x][y][z]->busy && loadedChunks[x][y][z]->data.isGenerated){
                                     #ifdef DEBUG_WORKER_THREADS
                                     printf("About to mesh chunk %d %d %d on thread %d\n", x, y, z, threadID);
                                     #endif
 
-                                    meshThreadFunction(&loadedWorld, x, y, z);
+                                    meshThreadFunction(&loadedWorld, x, y, z, loadedChunks);
 
                                     #ifdef DEBUG_WORKER_THREADS
                                     printf("Meshed chunk %d %d d on thread %d\n", x, y, z, threadID);

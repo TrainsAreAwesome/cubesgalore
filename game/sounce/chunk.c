@@ -33,7 +33,7 @@ const unsigned int nothing[] = {
 // };
 
 //shitty mesh generator
-int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, unsigned int shaderProgramme){
+int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, unsigned int shaderProgramme, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     //defining data
     cMesh* mesh = &chunk->mesh;
     cData* data = &chunk->data;
@@ -115,7 +115,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //posotive x
                 if(x == CHUNK_SIZE_X - 1){ //if we are at a chunk border
                     if(lx != loadedWorld->maxX - 1){ //check if we are at the border of loaded world
-                        if(!loadedWorld->chunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
+                        if(!loadedChunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
                             drawPXFace = 1;
                         }
                     }
@@ -126,7 +126,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //negative x
                 if(x == 0){
                     if(lx != 0){
-                        if(!loadedWorld->chunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
+                        if(!loadedChunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
                             drawNXFace = 1;
                         }
                     }
@@ -137,7 +137,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //posotive y
                 if(y == CHUNK_SIZE_Y - 1){
                     if(ly != loadedWorld->maxY - 1){
-                        if(!loadedWorld->chunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
+                        if(!loadedChunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
                             drawPYFace = 1;
                         }
                     }
@@ -148,7 +148,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //negative y
                 if(y == 0){
                     if(ly != 0){
-                        if(!loadedWorld->chunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
+                        if(!loadedChunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
                             drawNYFace = 1;
                         }
                     }
@@ -159,7 +159,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //posative z
                 if(z == CHUNK_SIZE_Z - 1){
                     if(lz != loadedWorld->maxZ - 1){
-                        if(!loadedWorld->chunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
+                        if(!loadedChunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
                             drawPZFace = 1;
                         }
                     }
@@ -170,7 +170,7 @@ int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, u
                 //negative z
                 if(z == 0){
                     if(lz != 0){
-                        if(!loadedWorld->chunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
+                        if(!loadedChunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
                             drawNZFace = 1;
                         }
                     }
@@ -324,26 +324,26 @@ int initMeshFull(fullChunk* chunk, unsigned int shaderProgramme){
 
 
 //CORDS IN ARE L CORDS, RUN ON MAIN THREAD ONLY
-int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* loadedWorld, rawMesh* tmesh){
+int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* loadedWorld, rawMesh* tmesh, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     // printf("\ncopying mesh into vram start\n");
-    if(loadedWorld->chunks[x][y][z]->mesh.used == 0){
-        initMeshFull(loadedWorld->chunks[x][y][z], shaderProgramme);
+    if(loadedChunks[x][y][z]->mesh.used == 0){
+        initMeshFull(loadedChunks[x][y][z], shaderProgramme);
         // printf("\ninit mesh in vramf\n");
     } else {
-        glBindVertexArray(loadedWorld->chunks[x][y][z]->mesh.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, loadedWorld->chunks[x][y][z]->mesh.vbo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedWorld->chunks[x][y][z]->mesh.ebo);
+        glBindVertexArray(loadedChunks[x][y][z]->mesh.vao);
+        glBindBuffer(GL_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.vbo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.ebo);
     }
     if(tmesh->countVerticies){
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, tmesh->indicies, GL_STATIC_DRAW);
         glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, tmesh->verticies, GL_STATIC_DRAW);
-    } else if(loadedWorld->chunks[x][y][z]->mesh.used) { //if there was previous data but all blocks got destroyed then set the buffer to zero
+    } else if(loadedChunks[x][y][z]->mesh.used) { //if there was previous data but all blocks got destroyed then set the buffer to zero
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, (void*)0, GL_STATIC_DRAW);
         glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, (void*)0, GL_STATIC_DRAW);
     }
     // printf("\njust done glbufferdata\n");
-    loadedWorld->chunks[x][y][z]->mesh.countIndicies = tmesh->countIndicies;
-    loadedWorld->chunks[x][y][z]->mesh.countVerticies = tmesh->countVerticies;
+    loadedChunks[x][y][z]->mesh.countIndicies = tmesh->countIndicies;
+    loadedChunks[x][y][z]->mesh.countVerticies = tmesh->countVerticies;
     // printf("\nset vi count");
     //deleting the mesh
 
@@ -361,7 +361,7 @@ int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* l
 
 
 //shitty mesh generator, returns mesh data instead of copying it into gpu, better for multithreading
-int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, int lz){
+int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, int lz, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     //defining data
 
     if(result == NULL){
@@ -441,8 +441,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posotive x
                 if(x == CHUNK_SIZE_X - 1){ //if we are at a chunk border
                     if(lx != loadedWorld->maxX - 1){ //check if we are at the border of loaded world
-                        if(loadedWorld->chunks[lx + 1][ly][lz] != NULL){
-                            if(!loadedWorld->chunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
+                        if(loadedChunks[lx + 1][ly][lz] != NULL){
+                            if(!loadedChunks[lx + 1][ly][lz]->data.blocks[0][y][z].id){ //if we arnt check the block next in the next chunk
                                 drawPXFace = 1;
                             }
                         }
@@ -454,8 +454,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative x
                 if(x == 0){
                     if(lx != 0){
-                        if(loadedWorld->chunks[lx - 1][ly][lz] != NULL){
-                            if(!loadedWorld->chunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
+                        if(loadedChunks[lx - 1][ly][lz] != NULL){
+                            if(!loadedChunks[lx - 1][ly][lz]->data.blocks[CHUNK_SIZE_X - 1][y][z].id){
                                 drawNXFace = 1;
                             }
                         }
@@ -467,8 +467,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posotive y
                 if(y == CHUNK_SIZE_Y - 1){
                     if(ly != loadedWorld->maxY - 1){
-                        if(loadedWorld->chunks[lx][ly + 1][lz] != NULL){
-                            if(!loadedWorld->chunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
+                        if(loadedChunks[lx][ly + 1][lz] != NULL){
+                            if(!loadedChunks[lx][ly + 1][lz]->data.blocks[x][0][z].id){
                                 drawPYFace = 1;
                             }
                         }
@@ -480,8 +480,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative y
                 if(y == 0){
                     if(ly != 0){
-                        if(loadedWorld->chunks[lx][ly - 1][lz] != NULL){
-                            if(!loadedWorld->chunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
+                        if(loadedChunks[lx][ly - 1][lz] != NULL){
+                            if(!loadedChunks[lx][ly - 1][lz]->data.blocks[x][CHUNK_SIZE_Y - 1][z].id){
                                 drawNYFace = 1;
                             }
                         }
@@ -493,8 +493,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //posative z
                 if(z == CHUNK_SIZE_Z - 1){
                     if(lz != loadedWorld->maxZ - 1){
-                        if(loadedWorld->chunks[lx][ly][lz + 1] != NULL){
-                            if(!loadedWorld->chunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
+                        if(loadedChunks[lx][ly][lz + 1] != NULL){
+                            if(!loadedChunks[lx][ly][lz + 1]->data.blocks[x][y][0].id){
                                 drawPZFace = 1;
                             }
                         }
@@ -506,8 +506,8 @@ int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, in
                 //negative z
                 if(z == 0){
                     if(lz != 0){
-                        if(loadedWorld->chunks[lx][ly][lz - 1] != NULL){
-                            if(!loadedWorld->chunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
+                        if(loadedChunks[lx][ly][lz - 1] != NULL){
+                            if(!loadedChunks[lx][ly][lz - 1]->data.blocks[x][y][CHUNK_SIZE_Z - 1].id){
                                 drawNZFace = 1;
                             }
                         }

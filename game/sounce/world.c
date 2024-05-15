@@ -3,8 +3,6 @@
 #include "../header/terrainGen.h"
 #include <string.h>
 
-
-
 int worldToChunkPos(int x, int y, int z, int* rx, int* ry, int* rz){
     int i = x;
     if(x >= 0 && x < CHUNK_SIZE_X){
@@ -138,7 +136,7 @@ int freeChunk(fullChunk* chunk){
 
 
 //updated an array of loaded chunks for a given offset (loading new chunks)
-int updateWorld(world* loadedWorld, ivec3 offset){
+int updateWorld(world* loadedWorld, ivec3 offset, fullChunk* chunksToFree[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ], fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     
     printf("in update world\n");
 
@@ -151,15 +149,15 @@ int updateWorld(world* loadedWorld, ivec3 offset){
     }
 
     //create the chunk pointer array
-    fullChunk* newChunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
+    fullChunk* (*newChunks)[loadedWorld->maxY][loadedWorld->maxZ] = malloc(sizeof(fullChunk*[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]));
 
     //initialise array to NULL
     for(int x = 0; x < loadedWorld->maxX; ++x){
         for(int y = 0; y < loadedWorld->maxY; ++y){
             for(int z = 0; z < loadedWorld->maxZ; ++z){
                 newChunks[x][y][z] = NULL;
-                if(loadedWorld->chunks[x][y][z] != NULL){
-                    loadedWorld->chunks[x][y][z]->needed = 0;
+                if(loadedChunks[x][y][z] != NULL){
+                    loadedChunks[x][y][z]->needed = 0;
                 }
             }
         }
@@ -180,10 +178,10 @@ int updateWorld(world* loadedWorld, ivec3 offset){
                 samplePosZ = z + offset[2];
                 
                 if(isChunkInBounds(loadedWorld, samplePosX, samplePosY, samplePosZ)){
-                    newChunks[x][y][z] = loadedWorld->chunks[samplePosX][samplePosY][samplePosZ];
+                    newChunks[x][y][z] = loadedChunks[samplePosX][samplePosY][samplePosZ];
 
-                    if(loadedWorld->chunks[samplePosX][samplePosY][samplePosZ] != NULL){
-                        loadedWorld->chunks[samplePosX][samplePosY][samplePosZ]->needed = 1;
+                    if(loadedChunks[samplePosX][samplePosY][samplePosZ] != NULL){
+                        loadedChunks[samplePosX][samplePosY][samplePosZ]->needed = 1;
                     }
                 } else {
                     // // printf("about to allocate chunk %d %d %d", x, y, z);
@@ -211,78 +209,79 @@ int updateWorld(world* loadedWorld, ivec3 offset){
         for(int y = 0; y < loadedWorld->maxY; ++y){
             for(int z = 0; z < loadedWorld->maxZ; ++z){
 
-                if(loadedWorld->chunks[x][y][z] != NULL){
-                    if(!loadedWorld->chunks[x][y][z]->needed){
-                        chunksToFree[x][y][z] = loadedWorld->chunks[x][y][z];
+                if(loadedChunks[x][y][z] != NULL){
+                    if(!loadedChunks[x][y][z]->needed){
+                        chunksToFree[x][y][z] = loadedChunks[x][y][z];
                     }
                 } else {
-                    chunksToFree[x][y][z] = loadedWorld->chunks[x][y][z];
+                    chunksToFree[x][y][z] = loadedChunks[x][y][z];
                 }
             
-                loadedWorld->chunks[x][y][z] = newChunks[x][y][z];
+                loadedChunks[x][y][z] = newChunks[x][y][z];
 
-                // loadedWorld->chunks[x][y][z]->data.x = x + loadedWorld->offset[0] - ox;
-                // loadedWorld->chunks[x][y][z]->data.y = y + loadedWorld->offset[1] - oy;
-                // loadedWorld->chunks[x][y][z]->data.z = z + loadedWorld->offset[2] - oz;
+                // loadedChunks[x][y][z]->data.x = x + loadedWorld->offset[0] - ox;
+                // loadedChunks[x][y][z]->data.y = y + loadedWorld->offset[1] - oy;
+                // loadedChunks[x][y][z]->data.z = z + loadedWorld->offset[2] - oz;
                 
-                // loadedWorld->chunks[x][y][z]->needsUpdating = 1;
+                // loadedChunks[x][y][z]->needsUpdating = 1;
             }
         }
     }
+    free(newChunks);
     printf("leaving updateWorld\n");
 }
 
 
 //function that gets called on a worker thread to mesh a chunk
-void meshThreadFunction(world* loadedWorld, int x, int y, int z){
+void meshThreadFunction(world* loadedWorld, int x, int y, int z, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     //only remesh when all chunks around are generated
 
-    loadedWorld->chunks[x][y][z]->busy = 1;
+    loadedChunks[x][y][z]->busy = 1;
 
     int allChunksGenerated = 1;
     if(x != 0){
-        if(loadedWorld->chunks[x - 1][y][z] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x - 1][y][z]->data.isGenerated;
+        if(loadedChunks[x - 1][y][z] != NULL){
+            allChunksGenerated &= loadedChunks[x - 1][y][z]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
     }
 
     if(x != loadedWorld->maxX - 1){
-        if(loadedWorld->chunks[x + 1][y][z] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x + 1][y][z]->data.isGenerated;
+        if(loadedChunks[x + 1][y][z] != NULL){
+            allChunksGenerated &= loadedChunks[x + 1][y][z]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
     }
 
     if(y != 0){
-        if(loadedWorld->chunks[x][y - 1][z] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x][y - 1][z]->data.isGenerated;
+        if(loadedChunks[x][y - 1][z] != NULL){
+            allChunksGenerated &= loadedChunks[x][y - 1][z]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
     }
 
     if(y != loadedWorld->maxY - 1){
-        if(loadedWorld->chunks[x][y + 1][z] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x][y + 1][z]->data.isGenerated;
+        if(loadedChunks[x][y + 1][z] != NULL){
+            allChunksGenerated &= loadedChunks[x][y + 1][z]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
     }
 
     if(z != 0){
-        if(loadedWorld->chunks[x][y][z - 1] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x][y][z - 1]->data.isGenerated;
+        if(loadedChunks[x][y][z - 1] != NULL){
+            allChunksGenerated &= loadedChunks[x][y][z - 1]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
     }
 
     if(z != loadedWorld->maxZ - 1){
-        if(loadedWorld->chunks[x][y][z + 1] != NULL){
-            allChunksGenerated &= loadedWorld->chunks[x][y][z + 1]->data.isGenerated;
+        if(loadedChunks[x][y][z + 1] != NULL){
+            allChunksGenerated &= loadedChunks[x][y][z + 1]->data.isGenerated;
         } else {
             allChunksGenerated = 0;
         }
@@ -290,129 +289,129 @@ void meshThreadFunction(world* loadedWorld, int x, int y, int z){
 
     if(allChunksGenerated){
         // printf("meshing l %d %d %d on meshing thread\n", x, y, z);
-        if(loadedWorld->chunks[x][y][z]->rawMesh == NULL){
-            // printf("%p\n", loadedWorld->chunks[x][y][z]->rawMesh);
-            loadedWorld->chunks[x][y][z]->rawMesh = calloc(1, sizeof(rawMesh));
+        if(loadedChunks[x][y][z]->rawMesh == NULL){
+            // printf("%p\n", loadedChunks[x][y][z]->rawMesh);
+            loadedChunks[x][y][z]->rawMesh = calloc(1, sizeof(rawMesh));
             // printf("allocated raw mesh %d %d %d\n", x, y, z);
         }  
-        if(getMesh(&loadedWorld->chunks[x][y][z]->data, loadedWorld->chunks[x][y][z]->rawMesh, loadedWorld, x, y, z)){
-            // free(loadedWorld->chunks[x][y][z]->rawMesh);
-            // loadedWorld->chunks[x][y][z]->rawMesh = NULL;
-            loadedWorld->chunks[x][y][z]->busy = 0;
+        if(getMesh(&loadedChunks[x][y][z]->data, loadedChunks[x][y][z]->rawMesh, loadedWorld, x, y, z, loadedChunks)){
+            // free(loadedChunks[x][y][z]->rawMesh);
+            // loadedChunks[x][y][z]->rawMesh = NULL;
+            loadedChunks[x][y][z]->busy = 0;
             return;
         }
-        loadedWorld->chunks[x][y][z]->data.needsRemesh = 0; //we also use this to tell the main thread that we have finished meshing this chunk
+        loadedChunks[x][y][z]->data.needsRemesh = 0; //we also use this to tell the main thread that we have finished meshing this chunk
     }
-    loadedWorld->chunks[x][y][z]->busy = 0;
+    loadedChunks[x][y][z]->busy = 0;
 }
 
 //function that gets called on a worker thread to generate a chunk
-void tGenTheadFunction(world* loadedWorld, int x, int y, int z){
+void tGenTheadFunction(world* loadedWorld, int x, int y, int z, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     
-    loadedWorld->chunks[x][y][z]->busy = 1;
+    loadedChunks[x][y][z]->busy = 1;
 
     //generate it and "queue" it for meshing
-    loadedWorld->chunks[x][y][z]->data.x = x + loadedWorld->offset[0] - (loadedWorld->maxX / 2);
-    loadedWorld->chunks[x][y][z]->data.y = y + loadedWorld->offset[1] - (loadedWorld->maxY / 2);
-    loadedWorld->chunks[x][y][z]->data.z = z + loadedWorld->offset[2] - (loadedWorld->maxZ / 2);
+    loadedChunks[x][y][z]->data.x = x + loadedWorld->offset[0] - (loadedWorld->maxX / 2);
+    loadedChunks[x][y][z]->data.y = y + loadedWorld->offset[1] - (loadedWorld->maxY / 2);
+    loadedChunks[x][y][z]->data.z = z + loadedWorld->offset[2] - (loadedWorld->maxZ / 2);
 
     #ifdef DEBUG_WORKER_THREADS
     printf("Set cords for chunk %d %d %d\n", x, y, z);
     #endif
 
-    generateChunk(loadedWorld->chunks[x][y][z], loadedWorld);
+    generateChunk(loadedChunks[x][y][z], loadedWorld);
 
     #ifdef DEBUG_WORKER_THREADS
     printf("Generated block data for chunk %d %d %d\n", x, y, z);
     #endif
 
-    loadedWorld->chunks[x][y][z]->data.needsRemesh = 1;
+    loadedChunks[x][y][z]->data.needsRemesh = 1;
 
     //set surrounding chunks to update their mesh
     if(x != 0){
-        if(loadedWorld->chunks[x - 1][y][z] != NULL){
-            loadedWorld->chunks[x - 1][y][z]->data.needsRemesh = 1;
+        if(loadedChunks[x - 1][y][z] != NULL){
+            loadedChunks[x - 1][y][z]->data.needsRemesh = 1;
         }
     }
 
     if(x != loadedWorld->maxX - 1){
-        if(loadedWorld->chunks[x + 1][y][z] != NULL){
-            loadedWorld->chunks[x + 1][y][z]->data.needsRemesh = 1;
+        if(loadedChunks[x + 1][y][z] != NULL){
+            loadedChunks[x + 1][y][z]->data.needsRemesh = 1;
         }
     }
 
     if(y != 0){
-        if(loadedWorld->chunks[x][y - 1][z] != NULL){
-            loadedWorld->chunks[x][y - 1][z]->data.needsRemesh = 1;
+        if(loadedChunks[x][y - 1][z] != NULL){
+            loadedChunks[x][y - 1][z]->data.needsRemesh = 1;
         }
     }
 
     if(y != loadedWorld->maxY - 1){
-        if(loadedWorld->chunks[x][y + 1][z] != NULL){
-            loadedWorld->chunks[x][y + 1][z]->data.needsRemesh = 1;
+        if(loadedChunks[x][y + 1][z] != NULL){
+            loadedChunks[x][y + 1][z]->data.needsRemesh = 1;
         }
     }
 
     if(z != 0){
-        if(loadedWorld->chunks[x][y][z - 1] != NULL){
-            loadedWorld->chunks[x][y][z - 1]->data.needsRemesh = 1;
+        if(loadedChunks[x][y][z - 1] != NULL){
+            loadedChunks[x][y][z - 1]->data.needsRemesh = 1;
         }
     }
 
     if(z != loadedWorld->maxZ - 1){
-        if(loadedWorld->chunks[x][y][z + 1] != NULL){
-            loadedWorld->chunks[x][y][z + 1]->data.needsRemesh = 1;
+        if(loadedChunks[x][y][z + 1] != NULL){
+            loadedChunks[x][y][z + 1]->data.needsRemesh = 1;
         }
     }
 
-    loadedWorld->chunks[x][y][z]->data.isGenerated = 1;
+    loadedChunks[x][y][z]->data.isGenerated = 1;
 
     #ifdef DEBUG_WORKER_THREADS
     printf("generated chunk %d %d %d\n", x, y, z);
     #endif
 
-    loadedWorld->chunks[x][y][z]->busy = 0;
+    loadedChunks[x][y][z]->busy = 0;
 }
 
 //sets current chunk and surrounding chunks for remeshing
-void updateChunk(world* loadedWorld, int x, int y, int z){
+void updateChunk(world* loadedWorld, int x, int y, int z, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     
-    loadedWorld->chunks[x][y][z]->busy = 1;
+    loadedChunks[x][y][z]->busy = 1;
 
     //generate it and "queue" it for meshing
-    loadedWorld->chunks[x][y][z]->data.x = x + loadedWorld->offset[0] - loadedWorld->halfMaxX;
-    loadedWorld->chunks[x][y][z]->data.y = y + loadedWorld->offset[1] - loadedWorld->halfMaxY;
-    loadedWorld->chunks[x][y][z]->data.z = z + loadedWorld->offset[2] - loadedWorld->halfMaxZ;
+    loadedChunks[x][y][z]->data.x = x + loadedWorld->offset[0] - loadedWorld->halfMaxX;
+    loadedChunks[x][y][z]->data.y = y + loadedWorld->offset[1] - loadedWorld->halfMaxY;
+    loadedChunks[x][y][z]->data.z = z + loadedWorld->offset[2] - loadedWorld->halfMaxZ;
 
-    loadedWorld->chunks[x][y][z]->data.needsRemesh = 1;
+    loadedChunks[x][y][z]->data.needsRemesh = 1;
 
     //set surrounding chunks to update their mesh
     if(x != 0){
-        loadedWorld->chunks[x - 1][y][z]->data.needsRemesh = 1;
+        loadedChunks[x - 1][y][z]->data.needsRemesh = 1;
     }
 
     if(x != loadedWorld->maxX - 1){
-        loadedWorld->chunks[x + 1][y][z]->data.needsRemesh = 1;
+        loadedChunks[x + 1][y][z]->data.needsRemesh = 1;
     }
 
     if(y != 0){
-        loadedWorld->chunks[x][y - 1][z]->data.needsRemesh = 1;
+        loadedChunks[x][y - 1][z]->data.needsRemesh = 1;
     }
 
     if(y != loadedWorld->maxY - 1){
-        loadedWorld->chunks[x][y + 1][z]->data.needsRemesh = 1;
+        loadedChunks[x][y + 1][z]->data.needsRemesh = 1;
     }
 
     if(z != 0){
-        loadedWorld->chunks[x][y][z - 1]->data.needsRemesh = 1;
+        loadedChunks[x][y][z - 1]->data.needsRemesh = 1;
     }
 
     if(z != loadedWorld->maxZ - 1){
-        loadedWorld->chunks[x][y][z + 1]->data.needsRemesh = 1;
+        loadedChunks[x][y][z + 1]->data.needsRemesh = 1;
     }
 
-    // loadedWorld->chunks[x][y][z]->data.isGenerated = 1;
+    // loadedChunks[x][y][z]->data.isGenerated = 1;
     // printf("generated chunk %d %d %d in tgen thread\n", x, y, z);
 
-    loadedWorld->chunks[x][y][z]->busy = 0;
+    loadedChunks[x][y][z]->busy = 0;
 }

@@ -49,7 +49,7 @@ typedef struct {
 
 typedef struct{
     // fullChunk**** chunks;
-    fullChunk* chunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
+    // fullChunk* chunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
     // fullChunk chunks[LOADED_CHUNKS_X][LOADED_CHUNKS_Y][LOADED_CHUNKS_Z];
 
     fnl_state mainNoise;
@@ -61,6 +61,8 @@ typedef struct{
     fnl_state temp;
     int32_t maxX, maxY, maxZ;
     int32_t halfMaxX, halfMaxY, halfMaxZ;
+    
+    // fullChunk* chunks;
 
     ivec3 offset;
     ivec3 oldOffset;
@@ -68,8 +70,8 @@ typedef struct{
     uint8_t needsUpdate;
 } world;
 
-int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, unsigned int shaderProgramme);
-int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, int lz);
+int generateMesh(fullChunk* chunk, world* loadedWorld, int lx, int ly, int lz, unsigned int shaderProgramme, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]);
+int getMesh(cData* data, rawMesh* result, world* loadedWorld, int lx, int ly, int lz, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]);
 int initMeshFull(fullChunk* chunk, unsigned int shaderProgramme);
-int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* loadedWorld, rawMesh* tempMeshes);
+int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* loadedWorld, rawMesh* tempMeshes, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]);
 fullChunk**** initWorld(int x, int y, int z);

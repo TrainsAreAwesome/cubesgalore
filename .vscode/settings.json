@@ -17,7 +17,8 @@
         "corecrt.h": "c",
         "_mingw.h": "c",
         "malloc.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "typeinfo": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
