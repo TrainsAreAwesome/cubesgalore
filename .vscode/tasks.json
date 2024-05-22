@@ -17,6 +17,7 @@
                 "${fileDirname}/CGl/sounce/loading/sounce/loadShaders.c",
                 "${fileDirname}/CGl/sounce/loading/sounce/loadTexture.c",
                 "${fileDirname}/game/sounce/chunk.c",
+                "${fileDirname}/game/sounce/linklist.c",
                 "${fileDirname}/game/sounce/block.c",
                 "${fileDirname}/game/sounce/terrainGen.c",
                 "${fileDirname}/game/sounce/world.c",

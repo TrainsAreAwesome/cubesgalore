@@ -18,7 +18,8 @@
         "_mingw.h": "c",
         "malloc.h": "c",
         "string.h": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "linkklist.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }
