@@ -14,10 +14,10 @@
 typedef struct{
     Block_t blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
     int32_t x, y, z;
-    uint8_t needsRemesh;
-    uint8_t needsSaving;
-    uint8_t isGenerated;
-    uint8_t used;
+    volatile uint8_t needsRemesh;
+    volatile uint8_t needsSaving;
+    volatile uint8_t isGenerated;
+    volatile uint8_t used;
 } cData;
 
 typedef struct {
@@ -43,8 +43,8 @@ typedef struct {
     cMesh mesh;
     rawMesh* rawMesh;
     volatile uint8_t busy;
-    uint8_t needed;
-    uint8_t needsUpdating;
+    volatile uint8_t needed;
+    volatile uint8_t needsUpdating;
 } fullChunk;
 
 typedef struct{

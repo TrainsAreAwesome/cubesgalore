@@ -5,6 +5,7 @@
 #include "./game/header/chunk.h"
 #include "./game/header/terrainGen.h"
 #include "./game/header/world.h"
+#include "./game/header/linkklist.h"
 
 #define START_WIDTH 1920
 #define START_HEIGHT 1080
@@ -15,6 +16,7 @@
 CGlWindow_t window;
 Camera_t camera;
 
+uint8_t remeshAllChunks = 0;
 
 world loadedWorld;
 
@@ -49,11 +51,12 @@ int main(int argc, char** argv){
         printf("Couldn't get enough memory for the array of pointers to chunks!\n");
     }
 
-    fullChunk* (*chunksToFree)[loadedWorld.maxY][loadedWorld.maxZ] = malloc(sizeof(fullChunk*[loadedWorld.maxX][loadedWorld.maxY][loadedWorld.maxZ]));
-    if(chunksToFree == NULL){
-        printf("Couldn't get enough memory for the array of pointers to chunks to free!\n");
-    }
+    // fullChunk* (*chunksToFree)[loadedWorld.maxY][loadedWorld.maxZ] = malloc(sizeof(fullChunk*[loadedWorld.maxX][loadedWorld.maxY][loadedWorld.maxZ]));
+    // if(chunksToFree == NULL){
+    //     printf("Couldn't get enough memory for the array of pointers to chunks to free!\n");
+    // }
 
+    chunkStack* chunksToFreeQueue = initialiseChunkStack();
 
     loadedWorld.halfMaxX / loadedWorld.maxX / 2;
     loadedWorld.halfMaxY / loadedWorld.maxY / 2;
@@ -70,7 +73,7 @@ int main(int argc, char** argv){
 
  
     // int (*array)[ty][tz] = malloc(sizeof(int[tx][ty][tz])); //what the fuck
-    //3D ARRAY EXAMPLE
+    //3D INT ARRAY EXAMPLE
 
 
     loadedWorld.offset[0] = 0;
@@ -136,8 +139,9 @@ int main(int argc, char** argv){
                 // }
                 
                 // printf("allocating memory for chunk %d %d %d\n", x, y, z);
-                chunksToFree[x][y][z] = NULL;
+                // chunksToFree[x][y][z] = NULL;
                 loadedChunks[x][y][z] = NULL;
+                
             }
         }
     }    
@@ -206,7 +210,7 @@ int main(int argc, char** argv){
                     printf("about to update world\n");
                     ivec3 offset;
                     glm_ivec3_sub(loadedWorld.offset, loadedWorld.oldOffset, offset);
-                    updateWorld(&loadedWorld, offset, chunksToFree, loadedChunks);
+                    updateWorld(&loadedWorld, offset, &chunksToFreeQueue, loadedChunks);
                     loadedWorld.needsUpdate = 0;
                     haltThreads = 0;
                 }
@@ -219,14 +223,33 @@ int main(int argc, char** argv){
                                 continue;
                             }
                             //if there is a chunk to free, free it (has to be done on main thread otherwise there will be a vram leak)
-                            // if(chunksToFree[x][y][z] != NULL && amountChunkFrees <= 20){
-                                // printf("\n\nfreeing chunk %d %d %d\n\n\n", x, y, z);
-                            if(chunksToFree[x][y][z] != NULL){
-                                freeChunk(chunksToFree[x][y][z]);
-                                chunksToFree[x][y][z] = NULL;
+                            if(amountChunkFrees < 100){
+
+                                fullChunk* chunkToFree;
+                                chunkToFree = chunkLinkListPop(&chunksToFreeQueue);
+                                freeChunk(chunkToFree);
+                                if(chunkToFree != NULL){
+                                    printf("freed chunk at %p\n", chunkToFree);
+                                }
+                                ++amountChunkFrees;
                             }
-                                // ++amountChunkFrees;
-                            // }
+
+                            if(remeshAllChunks){
+                                for(int x = 0; x < loadedWorld.maxX; ++x){
+                                    for(int y = 0; y < loadedWorld.maxY; ++y){
+                                        for(int z = 0; z < loadedWorld.maxZ; ++z){
+                                            if(loadedChunks[x][y][z] == NULL){
+                                                continue;
+                                            }
+                                            while (loadedChunks[x][y][z]->busy){
+                                            }
+                                            loadedChunks[x][y][z]->data.needsRemesh = 1;
+                                        }
+                                    }
+                                }
+                                remeshAllChunks = 0;
+                            }
+
 
                             //if a new mesh has been generated
                             if(!loadedChunks[x][y][z]->data.needsRemesh && loadedChunks[x][y][z]->rawMesh != NULL/* && amountMeshUpdates <= 20*/){
@@ -412,11 +435,8 @@ void handleKeyboardInput(CGlWindow_t* window){
     
     //testing mesh regeneration
     if(glfwGetKey(window->GLFWWindow, GLFW_KEY_LEFT_ALT) == GLFW_PRESS){
-        // printf("Regenerating mesh!\n");
-        float startMesh = glfwGetTime();
-        float endMesh = glfwGetTime();
-        float dif = endMesh - startMesh;
-        // printf("Done! Time took: %f", dif);
+        printf("Setting all meshes for regeneration...\n");
+        remeshAllChunks = 1;
     }
 
     for(int i = 0; i < 3; ++i){

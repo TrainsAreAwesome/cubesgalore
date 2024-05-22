@@ -1,6 +1,7 @@
 #include "../header/world.h"
 // #include "../header/chunk.h"
 #include "../header/terrainGen.h"
+#include "../header/linkklist.h"
 #include <string.h>
 
 int worldToChunkPos(int x, int y, int z, int* rx, int* ry, int* rz){
@@ -117,26 +118,27 @@ int isChunkNearEdgeOfWorld(world* loadedWorld, int lx, int ly, int lz){
 
 //frees a chunk in the given loadedWorld with the given l cords
 int freeChunk(fullChunk* chunk){
-    if(chunk->rawMesh != NULL){
-        // if(chunk->rawMesh->verticies != NULL){
-            free(chunk->rawMesh->verticies);
-        // }
-        // if(chunk->rawMesh->indicies != NULL){
-            free(chunk->rawMesh->indicies);
-        // }
-        free(chunk->rawMesh);
-        chunk->rawMesh = NULL;
+    if(chunk != NULL){
+        if(chunk->rawMesh != NULL){
+            // if(chunk->rawMesh->verticies != NULL){
+                free(chunk->rawMesh->verticies);
+            // }
+            // if(chunk->rawMesh->indicies != NULL){
+                free(chunk->rawMesh->indicies);
+            // }
+            free(chunk->rawMesh);
+            chunk->rawMesh = NULL;
+        }
+        glDeleteBuffers(1, &chunk->mesh.ebo);
+        glDeleteBuffers(1, &chunk->mesh.vbo);
+        glDeleteVertexArrays(1, &chunk->mesh.vao);
+        free(chunk);
     }
-    glDeleteBuffers(1, &chunk->mesh.ebo);
-    glDeleteBuffers(1, &chunk->mesh.vbo);
-    glDeleteVertexArrays(1, &chunk->mesh.vao);
-
-    free(chunk);
 }
 
 
 //updated an array of loaded chunks for a given offset (loading new chunks)
-int updateWorld(world* loadedWorld, ivec3 offset, fullChunk* chunksToFree[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ], fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
+int updateWorld(world* loadedWorld, ivec3 offset, chunkStack** freeQueue, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     
     printf("in update world\n");
 
@@ -211,10 +213,11 @@ int updateWorld(world* loadedWorld, ivec3 offset, fullChunk* chunksToFree[loaded
 
                 if(loadedChunks[x][y][z] != NULL){
                     if(!loadedChunks[x][y][z]->needed){
-                        chunksToFree[x][y][z] = loadedChunks[x][y][z];
+                        // chunksToFree[x][y][z] = loadedChunks[x][y][z];
+                        // freeChunk(loadedChunks[x][y][z]);
+                        chunkLinkListPush(freeQueue, loadedChunks[x][y][z]);
+                        loadedChunks[x][y][z] = NULL;
                     }
-                } else {
-                    chunksToFree[x][y][z] = loadedChunks[x][y][z];
                 }
             
                 loadedChunks[x][y][z] = newChunks[x][y][z];
@@ -293,7 +296,10 @@ void meshThreadFunction(world* loadedWorld, int x, int y, int z, fullChunk* load
             // printf("%p\n", loadedChunks[x][y][z]->rawMesh);
             loadedChunks[x][y][z]->rawMesh = calloc(1, sizeof(rawMesh));
             // printf("allocated raw mesh %d %d %d\n", x, y, z);
-        }  
+        } else {
+            loadedChunks[x][y][z]->busy = 0; //wait for current mesh to be sent to gpu before overwriting it
+            return;
+        }
         if(getMesh(&loadedChunks[x][y][z]->data, loadedChunks[x][y][z]->rawMesh, loadedWorld, x, y, z, loadedChunks)){
             // free(loadedChunks[x][y][z]->rawMesh);
             // loadedChunks[x][y][z]->rawMesh = NULL;

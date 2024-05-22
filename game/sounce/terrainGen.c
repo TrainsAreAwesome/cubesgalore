@@ -113,6 +113,8 @@ int generateChunk(fullChunk* chunk, world* loadedWorld){
                 } else {
                     if((y + (chunk->data.y * CHUNK_SIZE_Y) < WATER_HEIGHT)){
                         chunk->data.blocks[x][y][z].id = WATER;
+                    } else {
+                        chunk->data.blocks[x][y][z].id = AIR;
                     }
                 }
                 

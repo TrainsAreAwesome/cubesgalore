@@ -316,6 +316,7 @@ int initMeshFull(fullChunk* chunk, unsigned int shaderProgramme){
     glBindVertexArray(chunk->mesh.vao);
     glBindBuffer(GL_ARRAY_BUFFER, chunk->mesh.vbo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, chunk->mesh.ebo);
+
     glVertexAttribIPointer(0, 1, GL_UNSIGNED_INT, 0, (void*)0);
     glEnableVertexAttribArray(0);
 
@@ -326,34 +327,34 @@ int initMeshFull(fullChunk* chunk, unsigned int shaderProgramme){
 //CORDS IN ARE L CORDS, RUN ON MAIN THREAD ONLY
 int copyMeshIntoVRAM(int x, int y, int z, unsigned int shaderProgramme, world* loadedWorld, rawMesh* tmesh, fullChunk* loadedChunks[loadedWorld->maxX][loadedWorld->maxY][loadedWorld->maxZ]){
     // printf("\ncopying mesh into vram start\n");
-    if(loadedChunks[x][y][z]->mesh.used == 0){
-        initMeshFull(loadedChunks[x][y][z], shaderProgramme);
-        // printf("\ninit mesh in vramf\n");
-    } else {
-        glBindVertexArray(loadedChunks[x][y][z]->mesh.vao);
-        glBindBuffer(GL_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.vbo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.ebo);
+    if(loadedChunks[x][y][z] != NULL){
+        if(loadedChunks[x][y][z]->mesh.used == 0){
+            initMeshFull(loadedChunks[x][y][z], shaderProgramme);
+            // printf("\ninit mesh in vramf\n");
+        } else {
+            glBindVertexArray(loadedChunks[x][y][z]->mesh.vao);
+            glBindBuffer(GL_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.vbo);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, loadedChunks[x][y][z]->mesh.ebo);
+        }
+        if(tmesh->countVerticies){
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, tmesh->indicies, GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, tmesh->verticies, GL_STATIC_DRAW);
+        } else if(loadedChunks[x][y][z]->mesh.used) { //if there was previous data but all blocks got destroyed then set the buffer to zero
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, (void*)0, GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, (void*)0, GL_STATIC_DRAW);
+        }
+        // printf("\njust done glbufferdata\n");
+        loadedChunks[x][y][z]->mesh.countIndicies = tmesh->countIndicies;
+        loadedChunks[x][y][z]->mesh.countVerticies = tmesh->countVerticies;
+        // printf("\nset vi count");
+        //deleting the mesh
+
+        free(tmesh->verticies);
+
+        free(tmesh->indicies);
+
+        loadedChunks[x][y][z]->mesh.used = 1;
     }
-    if(tmesh->countVerticies){
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, tmesh->indicies, GL_STATIC_DRAW);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, tmesh->verticies, GL_STATIC_DRAW);
-    } else if(loadedChunks[x][y][z]->mesh.used) { //if there was previous data but all blocks got destroyed then set the buffer to zero
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countIndicies, (void*)0, GL_STATIC_DRAW);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(unsigned int) * tmesh->countVerticies, (void*)0, GL_STATIC_DRAW);
-    }
-    // printf("\njust done glbufferdata\n");
-    loadedChunks[x][y][z]->mesh.countIndicies = tmesh->countIndicies;
-    loadedChunks[x][y][z]->mesh.countVerticies = tmesh->countVerticies;
-    // printf("\nset vi count");
-    //deleting the mesh
-
-    free(tmesh->verticies);
-
-    
-
-
-    free(tmesh->indicies);
-
     
         
     // printf("\nfreed data and about to exit copyMeshIntoVRAM\n");
